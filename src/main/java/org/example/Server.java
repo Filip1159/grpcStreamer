@@ -1,58 +1,55 @@
 package org.example;
 
 import io.grpc.ServerBuilder;
+import org.example.ui.ServerFrame;
+import org.opencv.core.Core;
+import org.opencv.core.Mat;
+import org.opencv.core.MatOfByte;
+import org.opencv.core.Size;
+import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.imgproc.Imgproc;
+import org.opencv.videoio.VideoCapture;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
+
+import static org.opencv.imgproc.Imgproc.INTER_CUBIC;
 
 public class Server {
-    private final int port;
-    private final io.grpc.Server server;
+    private final ServerFrame serverFrame;
+    private byte[] myCameraData;
 
-    public Server(int port) {
-        this(ServerBuilder.forPort(port), port);
-    }
-
-    public Server(ServerBuilder serverBuilder, int port) {
-        this.port = port;
-        StreamingServiceImpl laptopService = new StreamingServiceImpl();
-        server = serverBuilder.addService(laptopService)
+    public Server() throws IOException {
+        serverFrame = new ServerFrame();
+        var server = ServerBuilder.forPort(9000)
+                .addService(new StreamingServiceImpl(this))
                 .build();
-    }
 
-    public void start() throws IOException {
         server.start();
-        System.out.println("server started on port " + port);
 
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            @Override
-            public void run() {
-                System.err.println("shut down gRPC server because JVM shuts down");
-                try {
-                    Server.this.stop();
-                } catch (InterruptedException e) {
-                    e.printStackTrace(System.err);
-                }
-                System.err.println("server shut down");
-            }
-        });
-    }
+        VideoCapture capture = new VideoCapture(0);
+        Mat image = new Mat();
 
-    public void stop() throws InterruptedException {
-        if (server != null) {
-            server.shutdown().awaitTermination(30, TimeUnit.SECONDS);
+        while (true) {
+            System.out.println("while");
+            capture.read(image);
+            Imgproc.resize(image, image, new Size(160, 120), 0, 0, INTER_CUBIC);
+            var buf = new MatOfByte();
+            Imgcodecs.imencode(".jpg", image, buf);
+            myCameraData = buf.toArray();
+            serverFrame.updateMyCameraView(myCameraData);
         }
     }
 
-    private void blockUntilShutdown() throws InterruptedException {
-        if (server != null) {
-            server.awaitTermination();
-        }
+    public static void main(String[] args) throws IOException {
+        System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+        new Server();
     }
 
-    public static void main(String[] args) throws InterruptedException, IOException {
-        Server server = new Server(9000);
-        server.start();
-        server.blockUntilShutdown();
+    public void updateClientCamera(byte[] imageData) {
+        serverFrame.updateClientCamera(imageData);
+    }
+
+    public byte[] getMyCameraData() {
+        return myCameraData;
     }
 }

@@ -1,76 +1,50 @@
 package org.example;
 
 import com.google.protobuf.ByteString;
-import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import io.grpc.stub.StreamObserver;
-import org.example.grpc.StreamingFrame;
-import org.example.grpc.StreamingFrameResponse;
 import org.example.grpc.StreamingServiceGrpc;
-
-import java.util.Scanner;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
+import org.example.ui.ClientFrame;
+import org.opencv.core.Core;
+import org.opencv.core.Mat;
+import org.opencv.core.MatOfByte;
+import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.videoio.VideoCapture;
 
 public class Client {
-    private final ManagedChannel channel;
-    private final StreamingServiceGrpc.StreamingServiceStub asyncStub;
+    private final ClientFrame clientFrame;
 
-    public Client(String host, int port) {
-        channel = ManagedChannelBuilder.forAddress(host, port)
+    public Client() {
+        var clientStreamObserver = new ClientStreamObserver(this);
+        var channel = ManagedChannelBuilder.forAddress("localhost", 9000)
                 .usePlaintext()
                 .build();
-        asyncStub = StreamingServiceGrpc.newStub(channel);
-    }
+        var asyncStub = StreamingServiceGrpc.newStub(channel);
+        var requestObserver = asyncStub.streamToServer(clientStreamObserver);
 
-    public void rateLaptop(String[] laptopIDs) throws InterruptedException {
-        StreamObserver<StreamingFrame> requestObserver = asyncStub
-                .streamToServer(new StreamObserver<StreamingFrameResponse>() {
-                    @Override
-                    public void onNext(StreamingFrameResponse response) {
-                        System.out.println("laptop rated");
-                    }
+        clientFrame = new ClientFrame();
+        var capture = new VideoCapture(0);
+        var image = new Mat();
 
-                    @Override
-                    public void onError(Throwable t) {
-                        System.out.println(t.getMessage());
-                    }
-
-                    @Override
-                    public void onCompleted() {
-                        System.out.println("onCompleted");
-                    }
-                });
-
-        int n = laptopIDs.length;
-        try {
-            for (int i = 0; i < n; i++) {
-                StreamingFrame request = StreamingFrame.newBuilder()
-                        .setContent(ByteString.copyFrom("abcd", UTF_8))
-                        .build();
-                requestObserver.onNext(request);
-            }
-        } catch (Exception e) {
-            return;
-        }
-
-        requestObserver.onCompleted();
-    }
-
-    public static void testRateLaptop(Client client) throws InterruptedException {
-        Scanner scanner = new Scanner(System.in);
         while (true) {
-            String answer = scanner.nextLine();
-            if (answer.toLowerCase().trim().equals("n")) {
-                break;
-            }
-            client.rateLaptop(new String[]{"", "", ""});
+            capture.read(image);
+            var buf = new MatOfByte();
+            Imgcodecs.imencode(".jpg", image, buf);
+            var myCameraData = buf.toArray();
+            clientFrame.updateMyCameraView(myCameraData);
+            var request = org.example.grpc.StreamingFrame.newBuilder()
+                    .setContent(ByteString.copyFrom(myCameraData))
+                    .build();
+            requestObserver.onNext(request);
+            requestObserver.onCompleted();
         }
     }
 
-    public static void main(String[] args) throws InterruptedException {
-        Client client = new Client("0.0.0.0", 9000);
+    public void updateServerCamera(byte[] imageData) {
+        clientFrame.updateServerCamera(imageData);
+    }
 
-        testRateLaptop(client);
+    public static void main(String[] args) {
+        System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+        new Client();
     }
 }

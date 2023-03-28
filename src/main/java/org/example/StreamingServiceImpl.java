@@ -6,22 +6,23 @@ import org.example.grpc.StreamingFrame;
 import org.example.grpc.StreamingFrameResponse;
 import org.example.grpc.StreamingServiceGrpc;
 
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 public class StreamingServiceImpl extends StreamingServiceGrpc.StreamingServiceImplBase {
+    private final Server server;
+
+    public StreamingServiceImpl(Server server) {
+        this.server = server;
+    }
 
     @Override
     public StreamObserver<StreamingFrame> streamToServer(StreamObserver<StreamingFrameResponse> responseObserver) {
-        return new StreamObserver<StreamingFrame>() {
+        return new StreamObserver<>() {
             @Override
             public void onNext(StreamingFrame request) {
-                System.out.println("rec");
-                StreamingFrameResponse response = StreamingFrameResponse.newBuilder()
-                        .setContent(ByteString.copyFrom("abc", UTF_8))
-                        .build();
-
-                responseObserver.onNext(response);
+                System.out.println("onNext");
+                server.updateClientCamera(request.getContent().toByteArray());
+                responseObserver.onNext(StreamingFrameResponse.newBuilder()
+                        .setContent(ByteString.copyFrom(server.getMyCameraData()))
+                        .build());
             }
 
             @Override
