@@ -16,10 +16,10 @@ public class ClientFrame extends JFrame {
         add(serverCameraScreen);
 
         myCameraScreen = new JLabel();
-        myCameraScreen.setBounds(480, 360, 160, 120);
+        myCameraScreen.setBounds(480, 480, 160, 120);
         add(myCameraScreen);
 
-        setSize(new Dimension(660, 520));
+        setSize(new Dimension(660, 640));
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setVisible(true);
     }

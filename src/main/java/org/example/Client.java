@@ -12,6 +12,8 @@ import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.videoio.VideoCapture;
 
+import static org.opencv.imgproc.Imgproc.INTER_CUBIC;
+
 public class Client {
     private final ClientFrame clientFrame;
 
@@ -26,15 +28,17 @@ public class Client {
         clientFrame = new ClientFrame();
         var capture = new VideoCapture(0);
         var image = new Mat();
+        Mat smallImage = new Mat();
 
         while (true) {
             capture.read(image);
             var buf = new MatOfByte();
             Imgcodecs.imencode(".jpg", image, buf);
+            var smallBuf = new MatOfByte();
+            Imgproc.resize(image, smallImage, new Size(160, 120), 0, 0, INTER_CUBIC);
+            Imgcodecs.imencode(".jpg", smallImage, smallBuf);
             var myCameraData = buf.toArray();
-            var smallCopyOfCameraData = new MatOfByte();
-            Imgproc.resize(buf, smallCopyOfCameraData, new Size(100, 100));
-            clientFrame.updateMyCameraView(smallCopyOfCameraData.toArray());
+            clientFrame.updateMyCameraView(smallBuf.toArray());
             var request = org.example.grpc.StreamingFrame.newBuilder()
                     .setContent(ByteString.copyFrom(myCameraData))
                     .build();
