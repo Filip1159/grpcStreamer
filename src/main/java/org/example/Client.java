@@ -7,7 +7,9 @@ import org.example.ui.ClientFrame;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
+import org.opencv.core.Size;
 import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.imgproc.Imgproc;
 import org.opencv.videoio.VideoCapture;
 
 public class Client {
@@ -15,7 +17,7 @@ public class Client {
 
     public Client() {
         var clientStreamObserver = new ClientStreamObserver(this);
-        var channel = ManagedChannelBuilder.forAddress("localhost", 9000)
+        var channel = ManagedChannelBuilder.forAddress("192.168.0.103", 9000)
                 .usePlaintext()
                 .build();
         var asyncStub = StreamingServiceGrpc.newStub(channel);
@@ -30,12 +32,14 @@ public class Client {
             var buf = new MatOfByte();
             Imgcodecs.imencode(".jpg", image, buf);
             var myCameraData = buf.toArray();
-            clientFrame.updateMyCameraView(myCameraData);
+            var smallCopyOfCameraData = new MatOfByte();
+            Imgproc.resize(buf, smallCopyOfCameraData, new Size(100, 100));
+            clientFrame.updateMyCameraView(smallCopyOfCameraData.toArray());
             var request = org.example.grpc.StreamingFrame.newBuilder()
                     .setContent(ByteString.copyFrom(myCameraData))
                     .build();
             requestObserver.onNext(request);
-            requestObserver.onCompleted();
+            // requestObserver.onCompleted();
         }
     }
 

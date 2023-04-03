@@ -32,11 +32,12 @@ public class Server {
         while (true) {
             System.out.println("while");
             capture.read(image);
-            Imgproc.resize(image, image, new Size(160, 120), 0, 0, INTER_CUBIC);
+            var smallerImageCopy = new MatOfByte();
+            Imgproc.resize(image, smallerImageCopy, new Size(160, 120), 0, 0, INTER_CUBIC);
             var buf = new MatOfByte();
             Imgcodecs.imencode(".jpg", image, buf);
             myCameraData = buf.toArray();
-            serverFrame.updateMyCameraView(myCameraData);
+            serverFrame.updateMyCameraView(smallerImageCopy.toArray());
         }
     }
 
