@@ -28,16 +28,18 @@ public class Server {
 
         VideoCapture capture = new VideoCapture(0);
         Mat image = new Mat();
+        Mat smallImage = new Mat();
 
         while (true) {
             System.out.println("while");
             capture.read(image);
-            var smallerImageCopy = new MatOfByte();
-            Imgproc.resize(image, smallerImageCopy, new Size(160, 120), 0, 0, INTER_CUBIC);
             var buf = new MatOfByte();
             Imgcodecs.imencode(".jpg", image, buf);
+            var smallBuf = new MatOfByte();
+            Imgproc.resize(image, smallImage, new Size(160, 120), 0, 0, INTER_CUBIC);
+            Imgcodecs.imencode(".jpg", smallImage, smallBuf);
             myCameraData = buf.toArray();
-            serverFrame.updateMyCameraView(smallerImageCopy.toArray());
+            serverFrame.updateMyCameraView(smallBuf.toArray());
         }
     }
 
